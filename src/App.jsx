@@ -471,7 +471,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
   const [showPaywall, setShowPaywall] = useState(false);
   
   // 🔴 PASTE YOUR STRIPE PAYMENT LINKS HERE 🔴
-  const stripeMonthlyLink = "https://buy.stripe.com/test_MONTHLY_LINK"; 
+  const stripeMonthlyLink = "https://buy.stripe.com/test_4gM00jetHg6V3aUdgI6kg00"; 
   const stripeAnnualLink = "https://buy.stripe.com/test_ANNUAL_LINK"; 
   
   const handleStartNew = (dayId) => {
