@@ -1,23 +1,21 @@
 {
-"name": "Lethal Lifts",
+"name": "Lethal Lifts Pro",
 "short_name": "Lethal Lifts",
-"start_url": ".",
+"start_url": "/",
 "display": "standalone",
 "background_color": "#0a0a0a",
 "theme_color": "#0a0a0a",
-"description": "Untethered Strength Tracking",
+"description": "Cloud-connected workout tracking engine.",
 "icons": [
 {
-"src": "icon-192.png",
+"src": "/App.Logo.png",
 "sizes": "192x192",
-"type": "image/png",
-"purpose": "maskable any"
+"type": "image/png"
 },
 {
-"src": "icon-512.png",
+"src": "/App.Logo.png",
 "sizes": "512x512",
-"type": "image/png",
-"purpose": "maskable any"
+"type": "image/png"
 }
 ]
 }
