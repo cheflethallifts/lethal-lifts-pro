@@ -13,5 +13,15 @@
   <body class="bg-neutral-950 text-white m-0 p-0">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Register the service worker to unlock the PWA Install button
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.log('Service Worker registration failed: ', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
