@@ -471,8 +471,8 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
   const [showPaywall, setShowPaywall] = useState(false);
   
   // 🔴 PASTE YOUR STRIPE PAYMENT LINKS HERE 🔴
-  const stripeMonthlyLink = "https://buy.stripe.com/4gM00jetHg6V3aUdgI6kg00"; 
-  const stripeAnnualLink = "https://buy.stripe.com/dRmfZh85jg6VaDm6Sk6kg01"; 
+  const stripeMonthlyLink = "https://buy.stripe.com/test_MONTHLY_LINK"; 
+  const stripeAnnualLink = "https://buy.stripe.com/test_ANNUAL_LINK"; 
   
   const handleStartNew = (dayId) => {
     if (cachedSession && cachedSession.dayId !== dayId) {
@@ -599,7 +599,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
               {!isPro ? <span className="bg-purple-500/20 text-purple-400 text-[10px] font-bold px-2 py-1 rounded border border-purple-500/30 uppercase tracking-widest flex items-center gap-1"><Lock size={12}/> Pro</span> : <ChevronRight size={18} className="text-neutral-600 group-hover:text-purple-500" />}
             </button>
 
-            <button onClick={onLaunchWeightTracker} className="bg-neutral-900 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group">
+            <button onClick={() => isPro ? onLaunchWeightTracker() : setShowPaywall(true)} className="bg-neutral-900 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group">
               <div className="flex items-center gap-3">
                 <div className="bg-neutral-950 p-2 rounded-lg text-cyan-500"><Scale size={20} /></div>
                 <div className="text-left">
@@ -607,7 +607,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
                   <p className="text-xs text-neutral-500">Bodyweight trends</p>
                 </div>
               </div>
-              <ChevronRight size={18} className="text-neutral-600 group-hover:text-cyan-500" />
+              {!isPro ? <span className="bg-cyan-500/20 text-cyan-400 text-[10px] font-bold px-2 py-1 rounded border border-cyan-500/30 uppercase tracking-widest flex items-center gap-1"><Lock size={12}/> Pro</span> : <ChevronRight size={18} className="text-neutral-600 group-hover:text-cyan-500" />}
             </button>
           </div>
         </div>
@@ -646,14 +646,13 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
               </div>
             </button>
 
-            <button onClick={() => isPro ? onLaunchExport() : setShowPaywall(true)} className="bg-neutral-900 border border-neutral-800 hover:border-indigo-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group">
+            <button onClick={onLaunchExport} className="bg-neutral-900 border border-neutral-800 hover:border-indigo-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group">
               <div className="flex items-center gap-3">
                 <div className="bg-neutral-950 p-2 rounded-lg text-indigo-500"><Clipboard size={20} /></div>
                 <div className="text-left">
                   <h3 className="font-bold text-neutral-200">Export to Coach</h3>
                 </div>
               </div>
-              {!isPro ? <span className="bg-indigo-500/20 text-indigo-400 text-[10px] font-bold px-2 py-1 rounded border border-indigo-500/30 uppercase tracking-widest flex items-center gap-1"><Lock size={12}/> Pro</span> : null}
             </button>
 
             <button onClick={onLaunchGuide} className="bg-neutral-900 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group">
@@ -695,7 +694,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
                         <Star size={32} className="text-purple-500" fill="currentColor"/>
                     </div>
                     <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Upgrade to Pro</h3>
-                    <p className="text-neutral-400 text-sm leading-relaxed mb-6">Unlock the Progress Hub analytics, Coach Export functionality, and support independent development.</p>
+                    <p className="text-neutral-400 text-sm leading-relaxed mb-6">Unlock the Progress Hub analytics, Weight Tracker trends, and support independent development.</p>
                     
                     <div className="space-y-3">
                         <a 
