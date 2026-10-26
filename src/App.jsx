@@ -7,7 +7,8 @@ import {
   ArrowLeft, RefreshCw, TrendingUp, Scale, Clipboard, Copy, Check,
   Clock, Info, Mail, LogOut, Link as LinkIcon, Unlink, Play, Pause,
   RotateCcw, Timer as TimerIcon, BookOpen, X as XIcon,
-  Calculator as CalculatorIcon, Dumbbell, Search, Camera, AlertTriangle
+  Calculator as CalculatorIcon, Dumbbell, Search, Camera, AlertTriangle,
+  Lock, Star
 } from 'lucide-react';
 
 // ==========================================
@@ -466,7 +467,12 @@ function SupabaseAuth() {
   );
 }
 
-function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, onLaunchSetup, onLaunchProgress, onLaunchWeightTracker, onLaunchExport, onLaunchEditHub, onLaunchEquipment, onLaunchGuide, onLaunchAbout, onSignOut, showConfirm }) {
+function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, onLaunchSetup, onLaunchProgress, onLaunchWeightTracker, onLaunchExport, onLaunchEditHub, onLaunchEquipment, onLaunchGuide, onLaunchAbout, onSignOut, showConfirm, isPro, user }) {
+  const [showPaywall, setShowPaywall] = useState(false);
+  
+  // 🔴 PASTE YOUR STRIPE PAYMENT LINKS HERE 🔴
+  const stripeMonthlyLink = "https://buy.stripe.com/4gM00jetHg6V3aUdgI6kg00"; 
+  const stripeAnnualLink = "https://buy.stripe.com/dRmfZh85jg6VaDm6Sk6kg01"; 
   
   const handleStartNew = (dayId) => {
     if (cachedSession && cachedSession.dayId !== dayId) {
@@ -582,7 +588,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <h2 className="text-lg font-bold text-neutral-300 tracking-wide uppercase">Metrics & Hubs</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button onClick={onLaunchProgress} className="bg-neutral-900 border border-neutral-800 hover:border-purple-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group">
+            <button onClick={() => isPro ? onLaunchProgress() : setShowPaywall(true)} className="bg-neutral-900 border border-neutral-800 hover:border-purple-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group">
               <div className="flex items-center gap-3">
                 <div className="bg-neutral-950 p-2 rounded-lg text-purple-500"><BarChart2 size={20} /></div>
                 <div className="text-left">
@@ -590,7 +596,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
                   <p className="text-xs text-neutral-500">Volume visualization</p>
                 </div>
               </div>
-              <ChevronRight size={18} className="text-neutral-600 group-hover:text-purple-500" />
+              {!isPro ? <span className="bg-purple-500/20 text-purple-400 text-[10px] font-bold px-2 py-1 rounded border border-purple-500/30 uppercase tracking-widest flex items-center gap-1"><Lock size={12}/> Pro</span> : <ChevronRight size={18} className="text-neutral-600 group-hover:text-purple-500" />}
             </button>
 
             <button onClick={onLaunchWeightTracker} className="bg-neutral-900 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group">
@@ -640,13 +646,14 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
               </div>
             </button>
 
-            <button onClick={onLaunchExport} className="bg-neutral-900 border border-neutral-800 hover:border-indigo-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group">
+            <button onClick={() => isPro ? onLaunchExport() : setShowPaywall(true)} className="bg-neutral-900 border border-neutral-800 hover:border-indigo-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group">
               <div className="flex items-center gap-3">
                 <div className="bg-neutral-950 p-2 rounded-lg text-indigo-500"><Clipboard size={20} /></div>
                 <div className="text-left">
                   <h3 className="font-bold text-neutral-200">Export to Coach</h3>
                 </div>
               </div>
+              {!isPro ? <span className="bg-indigo-500/20 text-indigo-400 text-[10px] font-bold px-2 py-1 rounded border border-indigo-500/30 uppercase tracking-widest flex items-center gap-1"><Lock size={12}/> Pro</span> : null}
             </button>
 
             <button onClick={onLaunchGuide} className="bg-neutral-900 border border-neutral-800 hover:border-cyan-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group">
@@ -678,6 +685,42 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
 
           </div>
         </div>
+
+        {showPaywall && (
+          <div className="fixed inset-0 bg-neutral-950/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fade-in">
+             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl relative animate-slide-up">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-cyan-500"></div>
+                <div className="p-6 text-center">
+                    <div className="mx-auto w-16 h-16 flex items-center justify-center rounded-full bg-neutral-950 border border-neutral-800 mb-4 shadow-[0_0_20px_rgba(168,85,247,0.2)]">
+                        <Star size={32} className="text-purple-500" fill="currentColor"/>
+                    </div>
+                    <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Upgrade to Pro</h3>
+                    <p className="text-neutral-400 text-sm leading-relaxed mb-6">Unlock the Progress Hub analytics, Coach Export functionality, and support independent development.</p>
+                    
+                    <div className="space-y-3">
+                        <a 
+                           href={`${stripeAnnualLink}?client_reference_id=${user.id}`} 
+                           className="w-full flex flex-col justify-center items-center bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg active:scale-95"
+                        >
+                           <span>Annual Pro</span>
+                           <span className="text-xs font-medium opacity-90">$39.99/year (Save 33%)</span>
+                        </a>
+                        <a 
+                           href={`${stripeMonthlyLink}?client_reference_id=${user.id}`} 
+                           className="w-full flex flex-col justify-center items-center bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-white font-bold py-3 rounded-xl transition-all active:scale-95"
+                        >
+                           <span>Monthly Pro</span>
+                           <span className="text-xs font-medium text-neutral-400">$4.99/month</span>
+                        </a>
+                    </div>
+
+                    <button onClick={() => setShowPaywall(false)} className="w-full mt-4 py-3 text-neutral-500 hover:text-white font-semibold transition-colors">
+                       Maybe Later
+                    </button>
+                </div>
+             </div>
+          </div>
+        )}
 
       </div>
     </div>
@@ -2954,6 +2997,7 @@ function App() {
   
   const [isSyncing, setIsSyncing] = useState(true);
   const [hasInitialSyncCompleted, setHasInitialSyncCompleted] = useState(false);
+  const [isPro, setIsPro] = useState(false);
   
   const [globalHistory, setGlobalHistory] = useState([]);
   const [weightHistory, setWeightHistory] = useState([]);
@@ -2967,6 +3011,24 @@ function App() {
   const [modalConfig, setModalConfig] = useState(null);
   const showAlert = (message, title="Notice") => setModalConfig({ type: 'alert', message, title });
   const showConfirm = (message, title="Confirm", onConfirm) => setModalConfig({ type: 'confirm', message, title, onConfirm });
+
+  if (configError) {
+    return (
+      <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-8 text-center font-sans space-y-6">
+        <div className="bg-red-500/10 p-4 rounded-full border border-red-500/20">
+          <Settings size={48} className="text-red-500" />
+        </div>
+        <h1 className="text-3xl font-bold text-white">Startup Diagnostic</h1>
+        <p className="text-neutral-400 max-w-md leading-relaxed">
+          The application halted because the database pipeline threw a critical error during initialization.
+        </p>
+        <div className="bg-neutral-900 border border-red-500/20 p-4 rounded-xl text-left font-mono text-sm text-red-400 w-full max-w-md overflow-auto">
+            <p className="font-bold text-white mb-2">Raw Error Log:</p>
+            {typeof configError === 'string' ? configError : 'Invalid URL or missing keys.'}
+        </div>
+      </div>
+    );
+  }
 
   const checkCache = () => {
     const cacheStr = safeStorageGet('lethal_workout_cache');
@@ -3081,6 +3143,13 @@ function App() {
             setMasterExercises(exData);
         }
 
+        const { data: subData } = await supabaseClient.from('user_subscriptions').select('is_pro').eq('user_id', user.id).maybeSingle();
+        if (subData && subData.is_pro) {
+            setIsPro(true);
+        } else {
+            setIsPro(false);
+        }
+
       } catch (error) {
         console.error("Failed to sync with Supabase:", error);
       } finally {
@@ -3118,24 +3187,6 @@ function App() {
       setEditSessionId(timestamp);
       setCurrentView('tracker');
   };
-
-  if (configError) {
-    return (
-      <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-8 text-center font-sans space-y-6">
-        <div className="bg-red-500/10 p-4 rounded-full border border-red-500/20">
-          <Settings size={48} className="text-red-500" />
-        </div>
-        <h1 className="text-3xl font-bold text-white">Startup Diagnostic</h1>
-        <p className="text-neutral-400 max-w-md leading-relaxed">
-          The application halted because the database pipeline threw a critical error during initialization.
-        </p>
-        <div className="bg-neutral-900 border border-red-500/20 p-4 rounded-xl text-left font-mono text-sm text-red-400 w-full max-w-md overflow-auto">
-            <p className="font-bold text-white mb-2">Raw Error Log:</p>
-            {typeof configError === 'string' ? configError : 'Invalid URL or missing keys.'}
-        </div>
-      </div>
-    );
-  }
 
   if (authLoading) {
     return <div className="min-h-screen bg-neutral-950 flex items-center justify-center"><RefreshCw size={40} className="text-cyan-500 animate-spin" /></div>;
@@ -3228,6 +3279,8 @@ function App() {
             onLaunchGuide={() => { setShowAppGuide(true); setTimeout(() => window.scrollTo(0,0), 10); }}
             onLaunchAbout={() => { setShowAbout(true); setTimeout(() => window.scrollTo(0,0), 10); }}
             showConfirm={showConfirm}
+            isPro={isPro}
+            user={user}
             onSignOut={() => {
                 showConfirm("Are you sure you want to sign out?", "Sign Out", async () => {
                     safeStorageRemove('lethal_workout_cache');
