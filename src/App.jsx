@@ -471,8 +471,8 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
   const [showPaywall, setShowPaywall] = useState(false);
   
   // 🔴 PASTE YOUR STRIPE PAYMENT LINKS HERE 🔴
-  const stripeMonthlyLink = "https://buy.stripe.com/test_4gM00jetHg6V3aUdgI6kg00"; 
-  const stripeAnnualLink = "https://buy.stripe.com/test_ANNUAL_LINK"; 
+  const stripeMonthlyLink = "https://buy.stripe.com/4gM00jetHg6V3aUdgI6kg00"; 
+  const stripeAnnualLink = "https://buy.stripe.com/dRmfZh85jg6VaDm6Sk6kg01"; 
   
   const handleStartNew = (dayId) => {
     if (cachedSession && cachedSession.dayId !== dayId) {
