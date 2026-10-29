@@ -14,7 +14,13 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
-      // Register the service worker to unlock the PWA Install button
+      // 1. Vite fallback: If an old JS chunk is missing from the server, auto-refresh to get the new ones!
+      window.addEventListener('vite:preloadError', (event) => {
+        event.preventDefault();
+        window.location.reload(); 
+      });
+
+      // 2. Register the service worker to unlock the PWA Install button and Offline Mode
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch((err) => {
