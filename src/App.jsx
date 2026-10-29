@@ -8,7 +8,7 @@ import {
   Clock, Info, Mail, LogOut, Link as LinkIcon, Unlink, Play, Pause,
   RotateCcw, Timer as TimerIcon, BookOpen, X as XIcon,
   Calculator as CalculatorIcon, Dumbbell, Search, Camera, AlertTriangle,
-  Lock, Star
+  Lock, Star, WifiOff
 } from 'lucide-react';
 
 // ==========================================
@@ -97,7 +97,8 @@ const compressAndUploadImage = async (file, userId, supabase) => {
           }
           const fileName = `${userId}/${Date.now()}.webp`;
           
-          const { data, error } = await supabase.storage
+          const { data, error } = await supabase
+            .storage
             .from('progress_pics')
             .upload(fileName, blob, {
               contentType: 'image/webp',
@@ -467,12 +468,11 @@ function SupabaseAuth() {
   );
 }
 
-function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, onLaunchSetup, onLaunchProgress, onLaunchWeightTracker, onLaunchExport, onLaunchEditHub, onLaunchEquipment, onLaunchGuide, onLaunchAbout, onSignOut, showConfirm, isPro, user }) {
+function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, onLaunchSetup, onLaunchProgress, onLaunchWeightTracker, onLaunchExport, onLaunchEditHub, onLaunchEquipment, onLaunchGuide, onLaunchAbout, onSignOut, showConfirm, isPro, user, isOnline }) {
   const [showPaywall, setShowPaywall] = useState(false);
   
-  // 🔴 PASTE YOUR STRIPE PAYMENT LINKS HERE 🔴
-  const stripeMonthlyLink = "https://buy.stripe.com/4gM00jetHg6V3aUdgI6kg00"; 
-  const stripeAnnualLink = "https://buy.stripe.com/dRmfZh85jg6VaDm6Sk6kg01"; 
+  const stripeMonthlyLink = "YOUR_LIVE_MONTHLY_LINK_HERE"; 
+  const stripeAnnualLink = "YOUR_LIVE_ANNUAL_LINK_HERE"; 
   
   const handleStartNew = (dayId) => {
     if (cachedSession && cachedSession.dayId !== dayId) {
@@ -489,18 +489,38 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
     <div className="min-h-screen bg-neutral-950 text-neutral-100 p-4 md:p-8 font-sans pb-12">
       <div className="max-w-3xl mx-auto space-y-8">
         
+        {!isOnline && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg shadow-amber-500/5">
+                <div className="flex items-center gap-3">
+                    <div className="bg-amber-500/20 p-2 rounded-full text-amber-500 shrink-0">
+                        <WifiOff size={20} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-amber-500 text-sm">Offline Mode Active</h3>
+                        <p className="text-xs text-amber-500/80">You can safely log workouts. They will save to your device and sync when you reconnect.</p>
+                    </div>
+                </div>
+            </div>
+        )}
+
         <div className="bg-gradient-to-br from-neutral-900 to-neutral-950 border border-neutral-800 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
           <div className="absolute -top-12 -right-12 w-48 h-48 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none"></div>
           <div className="flex justify-between items-start gap-4">
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
-                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]"></div>
-                 v0.3.0 VITE
+                 <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
+                 v0.4.0 OFFLINE
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts
               </h1>
-              <p className="text-neutral-400 font-medium flex items-center gap-2 mt-2"><Activity size={16} className="text-cyan-500" /> Cloud Connected</p>
+              <p className="text-neutral-400 font-medium flex items-center gap-2 mt-2">
+                {isOnline ? (
+                    <><Activity size={16} className="text-cyan-500" /> Cloud Connected</>
+                ) : (
+                    <><WifiOff size={16} className="text-amber-500" /> Local Storage Only</>
+                )}
+              </p>
             </div>
             <div className="bg-cyan-950/40 p-2 rounded-full border border-cyan-500/30 shadow-[0_0_20px_rgba(34,211,238,0.15)] flex items-center justify-center backdrop-blur-sm shrink-0 mt-1">
               <LethalLogo size={72} />
@@ -1351,7 +1371,7 @@ function PlateMathModal({ onClose, unitPref }) {
   );
 }
 
-function TrackingApp({ user, blueprintDay, globalHistory, editSessionId, onBack, unitPref, onWorkoutLogged, masterExercises, setMasterExercises, supabaseClient, showAlert, showConfirm }) {
+function TrackingApp({ user, blueprintDay, globalHistory, editSessionId, onBack, unitPref, onWorkoutLogged, masterExercises, setMasterExercises, supabaseClient, showAlert, showConfirm, isOnline }) {
   const [mode, setMode] = useState('setup');
   const [showPlateMath, setShowPlateMath] = useState(false);
   const [showTimer, setShowTimer] = useState(() => blueprintDay && blueprintDay.timerEnabled !== false);
@@ -1659,53 +1679,70 @@ function TrackingApp({ user, blueprintDay, globalHistory, editSessionId, onBack,
   const saveSessionToCloud = async () => {
     if (isSaving || saved || isLogged.current) return;
     setIsSaving(true);
+    
+    const sessionTs = editSessionId || new Date().toISOString();
+    
+    const recordsToInsert = [];
+    workoutData.forEach((ex, exIndex) => {
+       ex.sets.forEach(set => {
+          recordsToInsert.push({
+             user_id: user.id,
+             session_timestamp: sessionTs,
+             date: date,
+             day_title: dayTitle,
+             duration_mins: duration || null,
+             notes: notes || null,
+             exercise_name: ex.name,
+             exercise_order: exIndex,
+             set_num: set.id,
+             weight_lbs: set.weight || null,
+             reps: set.reps || null,
+             is_drop_set: set.isDropSet,
+             is_superset: ex.isSuperset
+          });
+       });
+    });
+
     try {
-      const sessionTs = editSessionId || new Date().toISOString();
-      
+      if (!isOnline) {
+          throw new Error("Offline Mode Active");
+      }
+
       if (editSessionId) {
         await supabaseClient.from('workout_logs').delete().eq('session_timestamp', editSessionId);
       }
-
-      const recordsToInsert = [];
-      workoutData.forEach((ex, exIndex) => {
-         ex.sets.forEach(set => {
-            recordsToInsert.push({
-               user_id: user.id,
-               session_timestamp: sessionTs,
-               date: date,
-               day_title: dayTitle,
-               duration_mins: duration || null,
-               notes: notes || null,
-               exercise_name: ex.name,
-               exercise_order: exIndex,
-               set_num: set.id,
-               weight_lbs: set.weight || null,
-               reps: set.reps || null,
-               is_drop_set: set.isDropSet,
-               is_superset: ex.isSuperset
-            });
-         });
-      });
 
       if (recordsToInsert.length > 0) {
          const { error: insertError } = await supabaseClient.from('workout_logs').insert(recordsToInsert);
          if (insertError) throw insertError;
       }
 
+      completeSaveProcess();
+    } catch (e) {
+      console.warn("Falling back to local queue:", e.message);
+      
+      const offlineQueueStr = safeStorageGet('lethal_offline_queue', '[]');
+      const offlineQueue = JSON.parse(offlineQueueStr);
+      
+      offlineQueue.push({
+          id: sessionTs,
+          isEdit: !!editSessionId,
+          records: recordsToInsert
+      });
+      
+      safeStorageSet('lethal_offline_queue', JSON.stringify(offlineQueue));
+      
+      showAlert("You are currently offline. Your workout has been saved locally and will automatically sync when you reconnect.", "Saved Offline");
+      completeSaveProcess();
+    }
+  };
+
+  const completeSaveProcess = () => {
       setSaved(true);
       isLogged.current = true;
-      
       if (!editSessionId) safeStorageRemove('lethal_workout_cache');
-      
       if (onWorkoutLogged) onWorkoutLogged();
-      
-      setTimeout(() => { setSaved(false); onBack(); }, 1500); 
-    } catch (e) {
-      console.error("Cloud Save Error:", e);
-      showAlert(`Network Error: Could not reach the cloud. Use Quick Save to prevent data loss and try again when you have service. (${e.message || 'Connection Failed'})`, "Sync Error");
-    } finally {
-      setIsSaving(false);
-    }
+      setTimeout(() => { setSaved(false); setIsSaving(false); onBack(); }, 1500); 
   };
 
   if (!blueprintDay) return null;
@@ -1899,7 +1936,7 @@ function TrackingApp({ user, blueprintDay, globalHistory, editSessionId, onBack,
           </div>
           <button onClick={saveSessionToCloud} disabled={isSaving || saved || isLogged.current} className={`flex-grow flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-lg transition-all ${saved ? 'bg-emerald-600' : editSessionId ? 'bg-amber-600 hover:bg-amber-500' : 'bg-cyan-600 hover:bg-cyan-500'} text-white`}>
             {isSaving ? <RefreshCw size={24} className="animate-spin" /> : saved ? <CheckCircle size={24} /> : editSessionId ? <Edit3 size={24} /> : <Save size={24} />} 
-            {isSaving ? 'Saving...' : saved ? 'Cloud Updated' : editSessionId ? 'Update Session' : 'Log Workout'}
+            {isSaving ? 'Saving...' : saved ? 'Cloud Updated' : editSessionId ? 'Update Session' : isOnline ? 'Log Workout' : 'Save Offline'}
           </button>
         </div>
       </div>
@@ -2986,6 +3023,7 @@ function ExportHub({ globalHistory, onBack, unitPref, showAlert }) {
 function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   const [currentView, setCurrentView] = useState('landing'); 
   const [activeDayId, setActiveDayId] = useState(null);
@@ -3010,6 +3048,62 @@ function App() {
   const [modalConfig, setModalConfig] = useState(null);
   const showAlert = (message, title="Notice") => setModalConfig({ type: 'alert', message, title });
   const showConfirm = (message, title="Confirm", onConfirm) => setModalConfig({ type: 'confirm', message, title, onConfirm });
+
+  // -------------------------
+  // OFFLINE SYNC LOGIC
+  // -------------------------
+  const syncOfflineQueue = async () => {
+    const queueStr = safeStorageGet('lethal_offline_queue', '[]');
+    const queue = JSON.parse(queueStr);
+    
+    if (queue.length === 0 || !supabaseClient) return;
+    
+    let allSucceeded = true;
+    for (const session of queue) {
+        try {
+            if (session.isEdit) {
+                await supabaseClient.from('workout_logs').delete().eq('session_timestamp', session.id);
+            }
+            if (session.records && session.records.length > 0) {
+                const { error } = await supabaseClient.from('workout_logs').insert(session.records);
+                if (error) throw error;
+            }
+        } catch (e) {
+            console.error("Failed to sync offline session:", e);
+            allSucceeded = false;
+        }
+    }
+
+    if (allSucceeded) {
+        safeStorageRemove('lethal_offline_queue');
+        showAlert("All offline workouts have been successfully synced to the cloud!", "Sync Complete");
+        // Trigger a re-sync of global history to reflect the newly uploaded data
+        setHasInitialSyncCompleted(false);
+        setIsSyncing(true);
+    }
+  };
+
+  useEffect(() => {
+    const handleOnline = () => {
+        setIsOnline(true);
+        syncOfflineQueue();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // If we load the app and we are online, check if there's anything to sync
+    if (navigator.onLine) {
+        syncOfflineQueue();
+    }
+
+    return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+  // -------------------------
 
   if (configError) {
     return (
@@ -3089,6 +3183,11 @@ function App() {
 
   useEffect(() => {
     if (!user || hasInitialSyncCompleted || !supabaseClient) return;
+    if (!isOnline) {
+        setIsSyncing(false);
+        setHasInitialSyncCompleted(true);
+        return; // Don't try to fetch if we know we are offline
+    }
 
     const fetchCloudData = async () => {
       try {
@@ -3157,7 +3256,7 @@ function App() {
       }
     };
     fetchCloudData();
-  }, [user, hasInitialSyncCompleted]); 
+  }, [user, hasInitialSyncCompleted, isOnline]); 
 
   useEffect(() => {
     safeStorageSet('lethal_unitPref', unitPref);
@@ -3248,14 +3347,18 @@ function App() {
             }} 
             unitPref={unitPref} 
             onWorkoutLogged={() => {
-              setHasInitialSyncCompleted(false);
-              setIsSyncing(true);
+              // Only trigger a re-sync if we are actually online
+              if (isOnline) {
+                  setHasInitialSyncCompleted(false);
+                  setIsSyncing(true);
+              }
             }} 
             masterExercises={masterExercises}
             setMasterExercises={setMasterExercises}
             supabaseClient={supabaseClient}
             showAlert={showAlert}
             showConfirm={showConfirm}
+            isOnline={isOnline}
           />
         );
     }
@@ -3280,6 +3383,7 @@ function App() {
             showConfirm={showConfirm}
             isPro={isPro}
             user={user}
+            isOnline={isOnline}
             onSignOut={() => {
                 showConfirm("Are you sure you want to sign out?", "Sign Out", async () => {
                     safeStorageRemove('lethal_workout_cache');
