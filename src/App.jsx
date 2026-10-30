@@ -485,6 +485,7 @@ function SupabaseAuth() {
                         value={token} 
                         onChange={e => setToken(e.target.value.replace(/\D/g, ''))} 
                         placeholder="123456" 
+                        inputMode="numeric"
                         autoComplete="one-time-code"
                         className="w-full bg-neutral-950 border border-neutral-700 text-white pl-12 pr-4 py-4 rounded-xl focus:border-cyan-500 outline-none transition-colors text-center font-mono tracking-[0.5em] text-2xl" 
                     />
@@ -629,7 +630,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.12 beta
+                 v0.4.13 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts
