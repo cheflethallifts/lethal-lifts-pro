@@ -1,17 +1,26 @@
-const CACHE_NAME = 'lethal-lifts-v3'; // Bumped version to force cache refresh
+const CACHE_NAME = 'lethal-lifts-v4'; // Bumped version to force cache refresh
 
 const APP_SHELL = [
   '/',
-  '/index.html',
   '/App.Logo.png',
   '/manifest.json'
 ];
 
+// The first visit loads the JS before this worker is running, so nothing would
+// cache it. Without these files the saved page opens to a blank screen offline.
+const cacheCurrentBuild = async (cache) => {
+  const page = await cache.match('/');
+  const html = await page.text();
+  const assets = html.match(/\/assets\/[^"'\s>]+/g) || [];
+  await cache.addAll([...new Set(assets)]);
+};
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
+    caches.open(CACHE_NAME).then(async (cache) => {
       console.log('Opened cache');
-      return cache.addAll(APP_SHELL);
+      await cache.addAll(APP_SHELL);
+      await cacheCurrentBuild(cache);
     })
   );
   self.skipWaiting();
@@ -34,6 +43,9 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only reads can be cached. Analytics sends POSTs through here.
+  if (event.request.method !== 'GET') return;
+
   // Ignore external API calls (Database, Stripe, Analytics)
   if (event.request.url.includes('supabase.co') || 
       event.request.url.includes('stripe.com') ||
@@ -47,12 +59,14 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).then((networkResponse) => {
+        if (!networkResponse.ok) return networkResponse;
         return caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, networkResponse.clone());
           return networkResponse;
         });
-      }).catch(() => {
-        return caches.match('/index.html'); // The offline fallback
+      }).catch(async () => {
+        // The offline fallback: the newest saved copy, which matches the newest cached JS
+        return (await caches.match(event.request, { ignoreSearch: true })) || caches.match('/');
       })
     );
     return;
