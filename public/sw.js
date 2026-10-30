@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lethal-lifts-v4'; // Bumped version to force cache refresh
+const CACHE_NAME = 'lethal-lifts-v5'; // Bumped version to force cache refresh
 
 const APP_SHELL = [
   '/',
@@ -6,13 +6,17 @@ const APP_SHELL = [
   '/manifest.json'
 ];
 
-// The first visit loads the JS before this worker is running, so nothing would
-// cache it. Without these files the saved page opens to a blank screen offline.
-const cacheCurrentBuild = async (cache) => {
-  const page = await cache.match('/');
+// A saved page is useless without the JS and CSS it points to, and the screen stays
+// blank offline if they're missing. This fetches whichever ones aren't saved yet.
+const cachePageFiles = async (cache, page) => {
   const html = await page.text();
-  const assets = html.match(/\/assets\/[^"'\s>]+/g) || [];
-  await cache.addAll([...new Set(assets)]);
+  const assets = [...new Set(html.match(/\/assets\/[^"'\s>]+/g) || [])];
+
+  for (const asset of assets) {
+    if (!(await cache.match(asset))) {
+      await cache.add(asset);
+    }
+  }
 };
 
 self.addEventListener('install', (event) => {
@@ -20,7 +24,7 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME).then(async (cache) => {
       console.log('Opened cache');
       await cache.addAll(APP_SHELL);
-      await cacheCurrentBuild(cache);
+      await cachePageFiles(cache, await cache.match('/'));
     })
   );
   self.skipWaiting();
@@ -60,10 +64,20 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request).then((networkResponse) => {
         if (!networkResponse.ok) return networkResponse;
-        return caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, networkResponse.clone());
-          return networkResponse;
-        });
+
+        // Clones are taken now because the page starts reading the original straight away.
+        const pageCopy = networkResponse.clone();
+        const htmlCopy = networkResponse.clone();
+
+        // The page is only saved once its files are, so a failure keeps the last working copy.
+        event.waitUntil(
+          caches.open(CACHE_NAME).then(async (cache) => {
+            await cachePageFiles(cache, htmlCopy);
+            await cache.put(event.request, pageCopy);
+          }).catch(() => { /* Keep the last working copy */ })
+        );
+
+        return networkResponse;
       }).catch(async () => {
         // The offline fallback: the newest saved copy, which matches the newest cached JS
         return (await caches.match(event.request, { ignoreSearch: true })) || caches.match('/');
@@ -78,9 +92,9 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, networkResponse.clone());
-          });
+          // Cloned now, before the page starts reading it. Cloning later fails silently.
+          const copy = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         }
         return networkResponse;
       }).catch(() => { /* Ignore network errors in background update */ });

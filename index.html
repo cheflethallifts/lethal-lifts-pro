@@ -20,6 +20,15 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
+      // If the app's files never arrive, nothing above can show a message, so say something here.
+      // Styled inline because the stylesheet may be missing too.
+      setTimeout(function () {
+        var root = document.getElementById('root');
+        if (root && !root.hasChildNodes()) {
+          root.innerHTML = '<div style="min-height:100vh;box-sizing:border-box;padding:32px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#0a0a0a;color:#fff;font-family:system-ui,sans-serif"><h1 style="font-size:24px;margin:0 0 12px">Lethal Lifts couldn\'t load</h1><p style="color:#a3a3a3;max-width:320px;line-height:1.5;margin:0">This device doesn\'t have the latest app files yet. Connect to the internet and open the app again.</p></div>';
+        }
+      }, 6000);
+
       // 1. Vite fallback: If an old JS chunk is missing from the server, auto-refresh to get the new ones!
       window.addEventListener('vite:preloadError', (event) => {
         event.preventDefault();
