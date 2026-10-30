@@ -11,7 +11,7 @@ import {
   Clock, Info, Mail, LogOut, Link as LinkIcon, Unlink, Play, Pause,
   RotateCcw, Timer as TimerIcon, BookOpen, X as XIcon,
   Calculator as CalculatorIcon, Dumbbell, Search, Camera, AlertTriangle,
-  Lock, Star, WifiOff
+  Lock, Star, WifiOff, CreditCard
 } from 'lucide-react';
 
 // ==========================================
@@ -533,7 +533,8 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
   const [showPaywall, setShowPaywall] = useState(false);
   
   const stripeMonthlyLink = "https://buy.stripe.com/4gM00jetHg6V3aUdgI6kg00"; 
-  const stripeAnnualLink = "https://buy.stripe.com/dRmfZh85jg6VaDm6Sk6kg01"; 
+  const stripeAnnualLink = "https://buy.stripe.com/dRmfZh85jg6VaDm6Sk6kg01";
+  const stripePortalLink = "https://billing.stripe.com/p/login/4gM00jetHg6V3aUdgI6kg00";
   
   const handleStartNew = (dayId) => {
     if (cachedSession && cachedSession.dayId !== dayId) {
@@ -570,7 +571,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.10 beta
+                 v0.4.11 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts
@@ -753,6 +754,18 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
                 </div>
               </div>
             </button>
+
+            {isPro && (
+              <a href={`${stripePortalLink}?prefilled_email=${encodeURIComponent(user?.email || '')}`} target="_blank" rel="noopener noreferrer" className="bg-neutral-900 border border-neutral-800 hover:border-emerald-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group sm:col-span-2 lg:col-span-3">
+                <div className="flex items-center gap-3">
+                  <div className="bg-neutral-950 p-2 rounded-lg text-emerald-500"><CreditCard size={20} /></div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-neutral-200">Manage Subscription</h3>
+                    <p className="text-xs text-neutral-500">Log in with the email you used at checkout</p>
+                  </div>
+                </div>
+              </a>
+            )}
 
             <button onClick={onSignOut} className="bg-neutral-900 border border-neutral-800 hover:border-red-500/50 rounded-2xl p-4 flex items-center justify-between transition-colors group sm:col-span-2 lg:col-span-3">
               <div className="flex items-center gap-3">
