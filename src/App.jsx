@@ -570,7 +570,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.9 beta
+                 v0.4.10 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts
@@ -762,6 +762,8 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
                 </div>
               </div>
             </button>
+
+            <p className="text-center text-xs text-neutral-500 break-all sm:col-span-2 lg:col-span-3">Signed in as: {user?.email}</p>
 
           </div>
         </div>
