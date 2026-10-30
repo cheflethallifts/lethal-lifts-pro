@@ -632,7 +632,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.17 beta
+                 v0.4.18 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts
@@ -1098,12 +1098,21 @@ function ProgramSetup({ user, program, setProgram, blueprints, setBlueprints, on
     setLocalProgram(newProgram);
   };
 
-  const handleSaveToCloud = async () => {
+  const isEditingActive = !!editBpId && blueprints.some(b => b.id === editBpId && !b.is_archived);
+
+  // Changing the active program clears the workout in progress, so ask first.
+  const confirmDiscardSession = (action, onConfirm) => {
+     if (safeStorageGet('lethal_workout_cache')) {
+         showConfirm(`Warning: You have an unsaved session in progress. ${action} will permanently discard it. Continue?`, "Unsaved Session", onConfirm);
+     } else {
+         onConfirm();
+     }
+  };
+
+  const saveToCloud = async () => {
      setIsSaving(true);
      try {
-         const isEditingActive = editBpId && blueprints.find(b => b.id === editBpId && !b.is_archived);
-         
-         const makeActive = !!isEditingActive;
+         const makeActive = isEditingActive;
 
          if (makeActive) {
              await supabaseClient.from('blueprints').update({ is_archived: true }).eq('user_id', user.id);
@@ -1149,6 +1158,27 @@ function ProgramSetup({ user, program, setProgram, blueprints, setBlueprints, on
      } finally {
          setIsSaving(false);
      }
+  };
+
+  const handleSaveToCloud = () => {
+     if (isEditingActive) {
+         confirmDiscardSession("Saving changes to your active program", saveToCloud);
+     } else {
+         saveToCloud();
+     }
+  };
+
+  const setActiveProgram = async (bp) => {
+     try {
+         const { error: archiveError } = await supabaseClient.from('blueprints').update({ is_archived: true }).eq('user_id', user.id);
+         if (archiveError) throw archiveError;
+         const { error: activateError } = await supabaseClient.from('blueprints').update({ is_archived: false }).eq('id', bp.id);
+         if (activateError) throw activateError;
+         const updated = blueprints.map(b => Object.assign({}, b, { is_archived: b.id !== bp.id }));
+         setBlueprints(updated);
+         setProgram(bp.program_data);
+         safeStorageRemove('lethal_workout_cache');
+     } catch(e) { showAlert("Error setting active: " + e.message, "Update Failed"); }
   };
 
   if (view === 'hub') {
@@ -1208,16 +1238,7 @@ function ProgramSetup({ user, program, setProgram, blueprints, setBlueprints, on
                                           <button onClick={() => openEditor(bp)} className="px-4 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 font-bold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 border border-neutral-700 text-sm">
                                               <Edit3 size={16}/> Edit
                                           </button>
-                                          <button onClick={async () => {
-                                              try {
-                                                  await supabaseClient.from('blueprints').update({ is_archived: true }).eq('user_id', user.id);
-                                                  await supabaseClient.from('blueprints').update({ is_archived: false }).eq('id', bp.id);
-                                                  const updated = blueprints.map(b => Object.assign({}, b, { is_archived: b.id !== bp.id }));
-                                                  setBlueprints(updated);
-                                                  setProgram(bp.program_data);
-                                                  safeStorageRemove('lethal_workout_cache');
-                                              } catch(e) { showAlert("Error setting active: " + e.message, "Update Failed"); }
-                                          }} className="flex-grow bg-neutral-800 text-neutral-300 hover:bg-emerald-600/20 hover:text-emerald-400 hover:border-emerald-500/30 font-bold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 border border-neutral-700 text-sm">
+                                          <button onClick={() => confirmDiscardSession("Switching your active program", () => setActiveProgram(bp))} className="flex-grow bg-neutral-800 text-neutral-300 hover:bg-emerald-600/20 hover:text-emerald-400 hover:border-emerald-500/30 font-bold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 border border-neutral-700 text-sm">
                                               <RefreshCw size={16}/> Set as Active
                                           </button>
                                           <InlineConfirmDelete onConfirm={async () => {
@@ -1259,7 +1280,6 @@ function ProgramSetup({ user, program, setProgram, blueprints, setBlueprints, on
               <button onClick={() => setUnitPref('kg')} className={"px-4 py-2 rounded-md text-sm font-bold transition-colors " + (unitPref === 'kg' ? 'bg-cyan-600 text-white shadow-md' : 'text-neutral-400 hover:text-white')}>KG</button>
             </div>
             {(() => {
-              const isEditingActive = editBpId && blueprints.find(b => b.id === editBpId && !b.is_archived);
               const saveButtonText = isEditingActive ? 'Save Changes' : 'Save as Draft';
               
               return (
