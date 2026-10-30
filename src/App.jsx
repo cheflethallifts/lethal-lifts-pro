@@ -13,6 +13,7 @@ import {
   Calculator as CalculatorIcon, Dumbbell, Search, Camera, AlertTriangle,
   Lock, Star, WifiOff, CreditCard
 } from 'lucide-react';
+import { enqueueSession, syncQueuedSessions } from './offlineQueue';
 
 // ==========================================
 // 🔴 SUPABASE CONFIGURATION (VITE ENV) 🔴
@@ -630,7 +631,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.13 beta
+                 v0.4.14 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts
@@ -1849,7 +1850,8 @@ function TrackingApp({ user, blueprintDay, globalHistory, editSessionId, onBack,
       }
 
       if (editSessionId) {
-        await supabaseClient.from('workout_logs').delete().eq('session_timestamp', editSessionId);
+        const { error: deleteError } = await supabaseClient.from('workout_logs').delete().eq('session_timestamp', editSessionId);
+        if (deleteError) throw deleteError;
       }
 
       if (recordsToInsert.length > 0) {
@@ -1860,19 +1862,26 @@ function TrackingApp({ user, blueprintDay, globalHistory, editSessionId, onBack,
       completeSaveProcess();
     } catch (e) {
       console.warn("Falling back to local queue:", e.message);
-      
-      const offlineQueueStr = safeStorageGet('lethal_offline_queue', '[]');
-      const offlineQueue = JSON.parse(offlineQueueStr);
-      
-      offlineQueue.push({
+
+      const stored = enqueueSession({
           id: sessionTs,
+          userId: user.id,
           isEdit: !!editSessionId,
           records: recordsToInsert
       });
-      
-      safeStorageSet('lethal_offline_queue', JSON.stringify(offlineQueue));
-      
-      showAlert("You are currently offline. Your workout has been saved locally and will automatically sync when you reconnect.", "Saved Offline");
+
+      if (!stored) {
+        showAlert("We couldn't save this workout to the cloud or to your device. Keep this screen open and try again.", "Workout Not Saved");
+        setIsSaving(false);
+        return;
+      }
+
+      showAlert(
+        isOnline
+          ? "We couldn't reach the server, so your workout is saved on this device. It will sync automatically the next time you open the app."
+          : "You are currently offline. Your workout has been saved locally and will automatically sync when you reconnect.",
+        "Saved on This Device"
+      );
       completeSaveProcess();
     }
   };
@@ -3291,36 +3300,42 @@ function App() {
   // -------------------------
   // OFFLINE SYNC LOGIC
   // -------------------------
-  const syncOfflineQueue = async () => {
-    const queueStr = safeStorageGet('lethal_offline_queue', '[]');
-    const queue = JSON.parse(queueStr);
-    
-    if (queue.length === 0 || !supabaseClient) return;
-    
-    let allSucceeded = true;
-    for (const session of queue) {
-        try {
-            if (session.isEdit) {
-                await supabaseClient.from('workout_logs').delete().eq('session_timestamp', session.id);
-            }
-            if (session.records && session.records.length > 0) {
-                const { error } = await supabaseClient.from('workout_logs').insert(session.records);
-                if (error) throw error;
-            }
-        } catch (e) {
-            console.error("Failed to sync offline session:", e);
-            allSucceeded = false;
-        }
-    }
+  const isQueueSyncing = useRef(false);
+  const hasShownSyncFailure = useRef(false);
 
-    if (allSucceeded) {
-        safeStorageRemove('lethal_offline_queue');
-        showAlert("All offline workouts have been successfully synced to the cloud!", "Sync Complete");
+  const syncOfflineQueue = async () => {
+    if (!supabaseClient || isQueueSyncing.current) return;
+    isQueueSyncing.current = true;
+
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) return;
+
+      const { synced, failed } = await syncQueuedSessions(supabaseClient, session.user.id);
+
+      if (synced > 0) {
         // Trigger a re-sync of global history to reflect the newly uploaded data
         setHasInitialSyncCompleted(false);
         setIsSyncing(true);
+      }
+
+      if (failed > 0 && !hasShownSyncFailure.current) {
+        hasShownSyncFailure.current = true;
+        showAlert(`${failed === 1 ? "1 workout" : `${failed} workouts`} couldn't sync yet. Your data is safe on this device, and we'll try again when you reconnect or reopen the app.`, "Sync Paused");
+      } else if (failed === 0 && synced > 0) {
+        showAlert("All offline workouts have been successfully synced to the cloud!", "Sync Complete");
+      }
+    } finally {
+      isQueueSyncing.current = false;
     }
   };
+
+  // Also covers signing in, since a queued workout can only sync for the account that saved it.
+  useEffect(() => {
+    if (user && navigator.onLine) {
+      syncOfflineQueue();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -3331,11 +3346,6 @@ function App() {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    // If we load the app and we are online, check if there's anything to sync
-    if (navigator.onLine) {
-        syncOfflineQueue();
-    }
 
     return () => {
         window.removeEventListener('online', handleOnline);
@@ -3394,6 +3404,11 @@ function App() {
     });
 
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
+      // A full reload is the only way to be sure no Pro status or data carries over to the next login.
+      if (_event === 'SIGNED_OUT') {
+        window.location.replace('/');
+        return;
+      }
       setUser(session ? session.user : null);
     });
 
@@ -3642,10 +3657,9 @@ function App() {
             onSignOut={() => {
                 showConfirm("Are you sure you want to sign out?", "Sign Out", async () => {
                     safeStorageRemove('lethal_workout_cache');
-                    setGlobalHistory([]);
-                    setProgram([]);
-                    setWeightHistory([]);
-                    await supabaseClient.auth.signOut();
+                    const { error } = await supabaseClient.auth.signOut();
+                    // Without signal the server can't be told, so sign out on this device at least.
+                    if (error) await supabaseClient.auth.signOut({ scope: 'local' });
                 });
             }}
           />
