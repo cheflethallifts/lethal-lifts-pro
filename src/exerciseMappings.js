@@ -191,15 +191,21 @@ const SECONDARY_SET_CREDIT = 0.5;
 export const MAX_HEAT_WEEKLY_SETS = 16;
 export const HEAT_LEVELS = 5;
 
-const toLocalDateString = (d) => new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+export const toLocalDateString = (d) => new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
 // `Weight (lbs)` is ignored on purpose. Summing tonnage would pin legs at max
 // heat and leave pull-ups, planks and other bodyweight work at zero.
-export const calculateMuscleHeat = (globalHistory, masterExercises = [], { days = 7, now = new Date() } = {}) => {
+// Pass `days` for a rolling window, or `startDate` + `endDate` (YYYY-MM-DD) for a fixed one.
+export const calculateMuscleHeat = (globalHistory, masterExercises = [], { days = 7, startDate: fixedStart, endDate: fixedEnd, now = new Date() } = {}) => {
   const windowStart = new Date(now);
   windowStart.setDate(windowStart.getDate() - (days - 1));
-  const startDate = toLocalDateString(windowStart);
-  const endDate = toLocalDateString(now);
+  const startDate = fixedStart || toLocalDateString(windowStart);
+  const endDate = fixedEnd || toLocalDateString(now);
+
+  // Heat is a weekly rate, so long ranges are averaged down to stay comparable.
+  // Ranges under a week aren't scaled up, or one workout would max out the map.
+  const rangeDays = Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86400000) + 1;
+  const weeks = Math.max(1, rangeDays / 7);
 
   const muscles = {};
   const uncounted = new Set();
@@ -233,11 +239,12 @@ export const calculateMuscleHeat = (globalHistory, masterExercises = [], { days 
   });
 
   Object.values(muscles).forEach(m => {
-    m.score = Math.min(100, Math.round((m.sets / MAX_HEAT_WEEKLY_SETS) * 100));
+    m.weeklySets = Math.round((m.sets / weeks) * 10) / 10;
+    m.score = Math.min(100, Math.round(((m.sets / weeks) / MAX_HEAT_WEEKLY_SETS) * 100));
     m.level = Math.max(1, Math.ceil((m.score / 100) * HEAT_LEVELS));
   });
 
-  return { muscles, totalSets, uncounted: [...uncounted].sort() };
+  return { muscles, totalSets, weeks, uncounted: [...uncounted].sort() };
 };
 
 // The library reads `frequency` as a 1-based index into highlightedColors.

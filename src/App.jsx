@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { GoogleLogin } from '@react-oauth/google';
 import BodyModel from 'react-body-highlighter';
-import { calculateMuscleHeat, toHighlighterData, getMuscleFromPolygon, MUSCLE_LABELS, MAX_HEAT_WEEKLY_SETS } from './exerciseMappings';
+import { calculateMuscleHeat, toHighlighterData, toLocalDateString, getMuscleFromPolygon, MUSCLE_LABELS, MAX_HEAT_WEEKLY_SETS } from './exerciseMappings';
 import {
   Settings, ChevronRight, ChevronDown, ChevronUp, Activity,
   CalendarDays, BarChart2, Plus, Trash2, Save, CheckCircle,
@@ -553,7 +553,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.6 beta
+                 v0.4.7 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts
@@ -2098,11 +2098,27 @@ function EditLogHub({ globalHistory, onLaunchEdit, onBack, supabaseClient, showA
 }
 
 const HEAT_COLORS = ['#6b2c2c', '#8f2424', '#b91c1c', '#dc2626', '#ff3b3b'];
+const HEAT_TIMEFRAMES = [7, 14, 30, 90];
 
 function MuscleHeatMap({ globalHistory, masterExercises }) {
   const [selectedMuscle, setSelectedMuscle] = useState(null);
+  const [heatTimeframe, setHeatTimeframe] = useState(7);
+  const [customStart, setCustomStart] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    return toLocalDateString(d);
+  });
+  const [customEnd, setCustomEnd] = useState(() => toLocalDateString(new Date()));
 
-  const heat = React.useMemo(() => calculateMuscleHeat(globalHistory, masterExercises), [globalHistory, masterExercises]);
+  const isCustom = heatTimeframe === 'custom';
+  // Typing a start after the end just flips the range instead of showing nothing.
+  const rangeStart = customStart <= customEnd ? customStart : customEnd;
+  const rangeEnd = customStart <= customEnd ? customEnd : customStart;
+
+  const heat = React.useMemo(() => {
+    const range = heatTimeframe === 'custom' ? { startDate: rangeStart, endDate: rangeEnd } : { days: heatTimeframe };
+    return calculateMuscleHeat(globalHistory, masterExercises, range);
+  }, [globalHistory, masterExercises, heatTimeframe, rangeStart, rangeEnd]);
   const modelData = React.useMemo(() => toHighlighterData(heat.muscles), [heat]);
 
   const handleMuscleClick = ({ muscle }) => {
@@ -2115,13 +2131,31 @@ function MuscleHeatMap({ globalHistory, masterExercises }) {
 
   return (
     <div className="bg-gradient-to-br from-neutral-900 to-neutral-950 border border-neutral-800 rounded-2xl p-6 shadow-lg">
-      <div className="flex items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <h2 className="text-lg font-bold text-white flex items-center gap-2">
           <Activity size={20} className="text-purple-500" />
           Muscle Heat Map
         </h2>
-        <span className="text-xs font-bold text-neutral-400 bg-neutral-950 border border-neutral-800 px-2 py-1 rounded-md whitespace-nowrap">Last 7 Days</span>
+        <div className="flex bg-neutral-950 border border-neutral-800 rounded-xl p-1 w-full sm:w-auto">
+          {HEAT_TIMEFRAMES.map(days => (
+            <button key={days} onClick={() => setHeatTimeframe(days)} className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${heatTimeframe === days ? 'bg-purple-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}>{days}D</button>
+          ))}
+          <button onClick={() => setHeatTimeframe('custom')} className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isCustom ? 'bg-purple-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}>Custom</button>
+        </div>
       </div>
+
+      {isCustom && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          <div className="min-w-0">
+            <label className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1 block">From</label>
+            <input type="date" value={customStart} max={customEnd} onChange={e => e.target.value && setCustomStart(e.target.value)} className="w-full bg-neutral-950 border border-neutral-700 text-white px-3 py-2.5 rounded-xl font-medium focus:border-purple-500 outline-none" />
+          </div>
+          <div className="min-w-0">
+            <label className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-1 block">To</label>
+            <input type="date" value={customEnd} min={customStart} onChange={e => e.target.value && setCustomEnd(e.target.value)} className="w-full bg-neutral-950 border border-neutral-700 text-white px-3 py-2.5 rounded-xl font-medium focus:border-purple-500 outline-none" />
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
         {['anterior', 'posterior'].map(view => (
@@ -2135,24 +2169,24 @@ function MuscleHeatMap({ globalHistory, masterExercises }) {
       <div className="flex items-center justify-center gap-2 mt-5 text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
         <span>Less</span>
         {['#404040', ...HEAT_COLORS].map(color => <div key={color} className="w-5 h-2.5 rounded-sm" style={{ backgroundColor: color }}></div>)}
-        <span>{MAX_HEAT_WEEKLY_SETS}+ Sets</span>
+        <span>{MAX_HEAT_WEEKLY_SETS}+ Sets/Wk</span>
       </div>
 
       <div className="mt-5 bg-neutral-950 border border-neutral-800 rounded-xl p-4 min-h-[76px]">
         {!selectedMuscle ? (
-          <p className="text-sm text-neutral-500 text-center">{heat.totalSets > 0 ? 'Tap a muscle to see what hit it.' : 'No completed sets in the last 7 days.'}</p>
+          <p className="text-sm text-neutral-500 text-center">{heat.totalSets > 0 ? 'Tap a muscle to see what hit it.' : 'No completed sets in this timeframe.'}</p>
         ) : (
           <div>
             <div className="flex justify-between items-center gap-4">
               <span className="font-bold text-white">{MUSCLE_LABELS[selectedMuscle]}</span>
-              <span className="text-xs font-mono text-purple-400 bg-purple-400/10 px-2 py-1 rounded border border-purple-500/20 whitespace-nowrap">{selected ? selected.sets : 0} sets</span>
+              <span className="text-xs font-mono text-purple-400 bg-purple-400/10 px-2 py-1 rounded border border-purple-500/20 whitespace-nowrap">{selected ? selected.sets : 0} sets{selected && heat.weeks > 1 ? ` (${selected.weeklySets}/wk)` : ''}</span>
             </div>
-            <p className="text-sm text-neutral-500 mt-2">{selected ? selectedExercises.join(', ') : 'Not trained in the last 7 days.'}</p>
+            <p className="text-sm text-neutral-500 mt-2">{selected ? selectedExercises.join(', ') : 'Not trained in this timeframe.'}</p>
           </div>
         )}
       </div>
 
-      <p className="text-[10px] text-neutral-500 mt-3 ml-1">* Primary muscles earn 1 set, assisting muscles earn 0.5. Sets with no reps logged are skipped.</p>
+      <p className="text-[10px] text-neutral-500 mt-3 ml-1">* Primary muscles earn 1 set, assisting muscles earn 0.5. Sets with no reps logged are skipped. Timeframes over a week use your weekly average.</p>
       {heat.uncounted.length > 0 && (
         <p className="text-[10px] text-amber-500/80 mt-1 ml-1">* Not counted, no muscle data: {heat.uncounted.join(', ')}.</p>
       )}
@@ -3567,7 +3601,7 @@ function App() {
                 <h3 className="text-purple-400 font-bold text-lg mb-2 flex items-center gap-2"><TrendingUp size={20} /> 4. Tracking Progress</h3>
                 <ul className="text-neutral-400 text-sm leading-relaxed space-y-3 mt-4">
                   <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 shrink-0"></div><span><strong>Progress Hub:</strong> Automatically calculates and charts your Total Volume (Weight × Reps) so you can visualize progressive overload.</span></li>
-                  <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0"></div><span><strong>Muscle Heat Map:</strong> Lights up each muscle based on your completed sets over the last 7 days, so you can spot what's getting neglected. Tap a muscle to see which exercises hit it.</span></li>
+                  <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0"></div><span><strong>Muscle Heat Map:</strong> Lights up each muscle based on your completed sets over the timeframe you pick, so you can spot what's getting neglected. Tap a muscle to see which exercises hit it.</span></li>
                   <li className="flex items-start gap-2"><div className="w-1.5 h-1.5 rounded-full bg-cyan-500 mt-1.5 shrink-0"></div><span><strong>Body Metrics:</strong> A cloud weight tracker. Set a goal, and it will calculate if you are ahead or behind your expected target date.</span></li>
                 </ul>
               </div>
