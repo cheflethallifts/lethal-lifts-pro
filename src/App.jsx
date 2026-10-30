@@ -529,8 +529,66 @@ function SupabaseAuth() {
   )
 }
 
+function DeleteAccountModal({ isPro, isOnline, onClose }) {
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setErrorMsg("");
+
+    const { error } = await supabaseClient.functions.invoke('delete-account');
+
+    if (error) {
+      setErrorMsg("Your account wasn't fully deleted. Please try again, or email cheflethallifts@gmail.com if it keeps happening.");
+      setDeleting(false);
+      return;
+    }
+
+    ['lethal_workout_cache', 'lethal_offline_queue', 'lethal_bars', 'lethal_plates', 'lethal_unitPref'].forEach(safeStorageRemove);
+    // Local only: the login no longer exists on the server, so there's no session left to revoke there.
+    await supabaseClient.auth.signOut({ scope: 'local' });
+    window.location.replace('/');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-neutral-950/95 backdrop-blur-sm z-50 overflow-y-auto p-4 flex items-center justify-center">
+      <div className="max-w-md w-full bg-neutral-900 border border-red-500/30 rounded-3xl p-6 space-y-4 shadow-2xl">
+        <h2 className="text-2xl font-black text-white flex items-center gap-2"><AlertTriangle className="text-red-500" size={24} /> Delete Account</h2>
+        <p className="text-neutral-400 text-sm leading-relaxed">This permanently deletes your account, workouts, programs, custom exercises, weight entries, goals and progress photos. It can't be undone.</p>
+        {isPro && (
+          <p className="text-amber-400 text-sm leading-relaxed">Your Pro subscription will be cancelled immediately, and any remaining paid time won't be refunded.</p>
+        )}
+        <div>
+          <label htmlFor="delete-confirm" className="block text-neutral-400 text-sm mb-2">Type <strong className="text-white">DELETE</strong> to confirm</label>
+          <input
+            id="delete-confirm"
+            type="text"
+            value={confirmText}
+            onChange={e => setConfirmText(e.target.value)}
+            autoComplete="off"
+            className="w-full bg-neutral-950 border border-neutral-700 text-white px-4 py-3 rounded-xl focus:border-red-500 outline-none transition-colors"
+          />
+        </div>
+        {!isOnline && <p className="text-amber-400 text-sm">You need to be online to delete your account.</p>}
+        {errorMsg && <p className="text-red-400 text-sm leading-relaxed">{errorMsg}</p>}
+        <button
+          onClick={handleDelete}
+          disabled={confirmText !== 'DELETE' || deleting || !isOnline}
+          className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-bold py-4 rounded-xl transition-colors"
+        >
+          {deleting ? <RefreshCw size={20} className="animate-spin" /> : "Permanently Delete Account"}
+        </button>
+        <button onClick={onClose} disabled={deleting} className="w-full text-neutral-500 hover:text-white text-sm py-2 transition-colors">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, onLaunchSetup, onLaunchProgress, onLaunchWeightTracker, onLaunchExport, onLaunchEditHub, onLaunchEquipment, onLaunchGuide, onLaunchAbout, onSignOut, showConfirm, isPro, user, isOnline }) {
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   
   const stripeMonthlyLink = "https://buy.stripe.com/4gM00jetHg6V3aUdgI6kg00"; 
   const stripeAnnualLink = "https://buy.stripe.com/dRmfZh85jg6VaDm6Sk6kg01";
@@ -571,7 +629,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.11 beta
+                 v0.4.12 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts
@@ -776,10 +834,15 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
               </div>
             </button>
 
-            <p className="text-center text-xs text-neutral-500 break-all sm:col-span-2 lg:col-span-3">Signed in as: {user?.email}</p>
+            <div className="text-center text-xs text-neutral-500 space-y-2 sm:col-span-2 lg:col-span-3">
+              <p className="break-all">Signed in as: {user?.email}</p>
+              <button onClick={() => setShowDeleteAccount(true)} className="text-neutral-600 hover:text-red-400 underline transition-colors">Delete Account</button>
+            </div>
 
           </div>
         </div>
+
+        {showDeleteAccount && <DeleteAccountModal isPro={isPro} isOnline={isOnline} onClose={() => setShowDeleteAccount(false)} />}
 
         {showPaywall && (
           <div className="fixed inset-0 bg-neutral-950/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fade-in">
