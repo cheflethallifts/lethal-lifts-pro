@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { GoogleLogin } from '@react-oauth/google';
 import BodyModel from 'react-body-highlighter';
 import { calculateMuscleHeat, toHighlighterData, toLocalDateString, getMuscleFromPolygon, MUSCLE_LABELS, MAX_HEAT_WEEKLY_SETS } from './exerciseMappings';
@@ -14,6 +14,7 @@ import {
   Lock, Star, WifiOff, CreditCard
 } from 'lucide-react';
 import { enqueueSession, syncQueuedSessions } from './offlineQueue';
+import { saveCloudCache, loadCloudCache, loadLastUser, clearCloudCache } from './localCache';
 
 // ==========================================
 // 🔴 SUPABASE CONFIGURATION (VITE ENV) 🔴
@@ -631,7 +632,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.15 beta
+                 v0.4.16 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts
@@ -3330,6 +3331,27 @@ function App() {
     }
   };
 
+  // Show the last known data right away. The cloud fetch replaces it when it succeeds.
+  useEffect(() => {
+    if (!user) return;
+    const cached = loadCloudCache(user.id);
+    if (!cached) return;
+
+    setBlueprints(cached.blueprints ?? []);
+    setProgram(cached.program ?? []);
+    setGlobalHistory(cached.globalHistory);
+    setWeightHistory(cached.weightHistory ?? []);
+    setWeightGoals(cached.weightGoals ?? []);
+    setMasterExercises(cached.masterExercises ?? []);
+    setIsPro(!!cached.isPro);
+    setIsSyncing(false);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user || !hasInitialSyncCompleted) return;
+    saveCloudCache(user, { blueprints, program, globalHistory, weightHistory, weightGoals, masterExercises, isPro });
+  }, [user, hasInitialSyncCompleted, blueprints, program, globalHistory, weightHistory, weightGoals, masterExercises, isPro]);
+
   // Also covers signing in, since a queued workout can only sync for the account that saved it.
   useEffect(() => {
     if (user && navigator.onLine) {
@@ -3398,21 +3420,39 @@ function App() {
 
   useEffect(() => {
     if (!supabaseClient) return;
-    supabaseClient.auth.getSession().then(({ data: { session } }) => {
-      setUser(session ? session.user : null);
+
+    // Refreshing a login keeps retrying on bad signal, so don't leave the lifter on a spinner.
+    const authFallback = setTimeout(() => {
+      const lastUser = loadLastUser();
+      if (lastUser) {
+        setUser(lastUser);
+        setAuthLoading(false);
+      }
+    }, 5000);
+
+    supabaseClient.auth.getSession().then(({ data: { session }, error }) => {
+      clearTimeout(authFallback);
+      // An expired login can't refresh without a connection, which doesn't mean they signed out.
+      const canReuseLastUser = !navigator.onLine || isAuthRetryableFetchError(error);
+      setUser(session ? session.user : canReuseLastUser ? loadLastUser() : null);
       setAuthLoading(false);
     });
 
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => {
       // A full reload is the only way to be sure no Pro status or data carries over to the next login.
       if (_event === 'SIGNED_OUT') {
+        clearCloudCache();
         window.location.replace('/');
         return;
       }
-      setUser(session ? session.user : null);
+      // The startup event reports no session for an expired login, so getSession above decides that case.
+      if (session) setUser(session.user);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(authFallback);
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -3439,19 +3479,24 @@ function App() {
     if (!user || hasInitialSyncCompleted || !supabaseClient) return;
     if (!isOnline) {
         setIsSyncing(false);
-        setHasInitialSyncCompleted(true);
-        return; // Don't try to fetch if we know we are offline
+        return; // Don't try to fetch if we know we are offline. Reconnecting re-runs this.
     }
 
     const fetchCloudData = async () => {
       try {
+        // Without a valid login these queries "succeed" with no rows, which would
+        // look like the user has no data. A refreshed login re-runs this effect.
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+          setIsSyncing(false);
+          return;
+        }
+
         const { data: bpData } = await supabaseClient.from('blueprints').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-        if (bpData && bpData.length > 0) {
+        if (bpData) {
            setBlueprints(bpData);
            const active = bpData.find(bp => !bp.is_archived);
-           if (active && active.program_data) {
-              setProgram(active.program_data);
-           }
+           setProgram(active?.program_data ?? []);
         }
 
         // Supabase caps each response (1000 rows by default), and since this sorts
@@ -3511,22 +3556,27 @@ function App() {
             setMasterExercises(exData);
         }
 
-        const { data: subData } = await supabaseClient.from('user_subscriptions').select('is_pro').eq('user_id', user.id).maybeSingle();
-        if (subData && subData.is_pro) {
-            setIsPro(true);
-        } else {
-            setIsPro(false);
+        // A failed check keeps the last known status, so bad signal can't paywall a paying user
+        const { data: subData, error: subError } = await supabaseClient.from('user_subscriptions').select('is_pro').eq('user_id', user.id).maybeSingle();
+        if (!subError) {
+            setIsPro(!!subData?.is_pro);
         }
 
+        setHasInitialSyncCompleted(true);
       } catch (error) {
         console.error("Failed to sync with Supabase:", error);
+        setHasInitialSyncCompleted(true);
       } finally {
         setIsSyncing(false);
-        setHasInitialSyncCompleted(true);
       }
     };
     fetchCloudData();
-  }, [user, hasInitialSyncCompleted, isOnline]); 
+  }, [user, hasInitialSyncCompleted, isOnline]);
+
+  useEffect(() => {
+    if (!user || !hasInitialSyncCompleted) return;
+    saveCloudCache(user, { blueprints, program, globalHistory, weightHistory, weightGoals, masterExercises, isPro });
+  }, [user, hasInitialSyncCompleted, blueprints, program, globalHistory, weightHistory, weightGoals, masterExercises, isPro]);
 
   useEffect(() => {
     safeStorageSet('lethal_unitPref', unitPref);
