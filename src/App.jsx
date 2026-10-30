@@ -3574,11 +3574,6 @@ function App() {
   }, [user, hasInitialSyncCompleted, isOnline]);
 
   useEffect(() => {
-    if (!user || !hasInitialSyncCompleted) return;
-    saveCloudCache(user, { blueprints, program, globalHistory, weightHistory, weightGoals, masterExercises, isPro });
-  }, [user, hasInitialSyncCompleted, blueprints, program, globalHistory, weightHistory, weightGoals, masterExercises, isPro]);
-
-  useEffect(() => {
     safeStorageSet('lethal_unitPref', unitPref);
   }, [unitPref]);
 
