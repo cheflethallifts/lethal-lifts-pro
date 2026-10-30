@@ -163,11 +163,74 @@ const EXERCISE_TARGETS = {
   'woodchoppers': ROTATION
 };
 
-// Custom exercises only have the broad group picked when they were created.
+// Custom exercises get named freely ("Barbell Romanian Dead Lift"), so their
+// names are matched against movement patterns. Order matters: the first match
+// wins, so specific patterns must sit above general ones (leg curl above curl).
+const NAME_PATTERNS = [
+  // Legs and hinges
+  [/\b(romanian|rdls?|stiff ?leg(ged)?|straight ?leg)\b/, HINGE],
+  [/\bgood ?mornings?\b/, EXERCISE_TARGETS['good mornings']],
+  [/\b(leg|hamstring|nordic) ?curls?\b/, target(['hamstring'])],
+  [/\b(calf|calves)\b/, target(['calves'])],
+  [/\bleg extensions?\b/, target(['quadriceps'])],
+  [/\bleg press(es)?\b/, EXERCISE_TARGETS['leg press']],
+  [/\b(hip thrusts?|glute bridges?|glute kickbacks?)\b/, target(['gluteal'], ['hamstring'])],
+  [/\bpull ?throughs?\b/, EXERCISE_TARGETS['cable pull-through']],
+  [/\b(ad|ab)ductions?\b/, target(['adductor'])],
+  [/\b(back|hyper) ?extensions?\b/, target(['lower-back'], ['gluteal', 'hamstring'])],
+  [/\brack pulls?\b/, EXERCISE_TARGETS['rack pull']],
+  [/\b(trap|hex) bar\b/, EXERCISE_TARGETS['trap bar deadlift']],
+  [/\bdead ?lifts?\b/, EXERCISE_TARGETS['deadlift']],
+  [/\b(lunges?|split squats?|step ?ups?)\b/, LUNGE],
+  [/\bsquats?\b/, EXERCISE_TARGETS['barbell squat']],
+
+  // Arms
+  [/\b(tricep|triceps|skull ?crushers?|push ?downs?|press ?downs?)\b/, TRICEP_ISOLATION],
+  [/\bclose ?grip (bench|press)\b/, EXERCISE_TARGETS['close-grip bench press']],
+  [/\bdips?\b/, EXERCISE_TARGETS['dips']],
+  [/\b(reverse|wrist)( \w+)? curls?\b/, EXERCISE_TARGETS['reverse barbell curl']],
+  [/\bhammer curls?\b/, EXERCISE_TARGETS['dumbbell hammer curl']],
+  [/\b(curls?|biceps?)\b/, CURL],
+
+  // Shoulders
+  [/\b(face pulls?|rear delts?|reverse (fly|flyes|flies|pec deck))\b/, EXERCISE_TARGETS['reverse pec deck']],
+  [/\b(lateral|side) raises?\b/, LATERAL_RAISE],
+  [/\bfront raises?\b/, target(['front-deltoids'])],
+  [/\bshrugs?\b/, SHRUG],
+  [/\bupright rows?\b/, EXERCISE_TARGETS['upright row']],
+  [/\bpush press(es)?\b/, EXERCISE_TARGETS['push press']],
+  [/\b(shoulder|overhead|military|arnold) press(es)?\b/, OVERHEAD_PRESS],
+  [/\bseated (dumbbell|db|barbell) press(es)?\b/, OVERHEAD_PRESS],
+  [/\bohp\b/, OVERHEAD_PRESS],
+
+  // Back
+  [/\brows?\b/, SUPPORTED_ROW],
+  [/\b(pull ?ups?|chin ?ups?|pull ?downs?)\b/, VERTICAL_PULL],
+  [/\bpull ?overs?\b/, EXERCISE_TARGETS['dumbbell pullover']],
+
+  // Chest
+  [/\b(fly|flyes|flies|crossovers?|pec deck)\b/, FLY],
+  [/\b(bench|chest press|push ?ups?)\b/, BENCH],
+  [/\b(incline|decline|floor)( \w+)? press(es)?\b/, BENCH],
+
+  // Core
+  [/\b(twists?|wood ?chop(s|pers?)?)\b/, ROTATION],
+  [/\bbicycles?\b/, EXERCISE_TARGETS['bicycle crunches']],
+  [/\b(crunch(es)?|sit ?ups?|leg raises?|planks?|ab wheel)\b/, target(['abs'])]
+];
+
+export const inferTargetsFromName = (exerciseName) => {
+  const words = normalizeExerciseName(exerciseName).replace(/[^a-z0-9]+/g, ' ');
+  const match = NAME_PATTERNS.find(([pattern]) => pattern.test(words));
+  return match ? match[1] : null;
+};
+
+// Last resort for custom exercises when the name gives nothing away. Groups that
+// span several muscles split the credit rather than guessing one winner.
 const MUSCLE_GROUP_FALLBACKS = {
   'Chest': target(['chest']),
   'Back': target(['upper-back']),
-  'Legs': target(['quadriceps'], ['hamstring', 'gluteal']),
+  'Legs': target([], ['quadriceps', 'hamstring', 'gluteal']),
   'Shoulders': target(['front-deltoids']),
   'Arms': target([], ['biceps', 'triceps']),
   'Core': target(['abs'])
@@ -178,6 +241,9 @@ export const normalizeExerciseName = (name) => String(name || '').trim().toLower
 export const getExerciseTargets = (exerciseName, masterExercises = []) => {
   const key = normalizeExerciseName(exerciseName);
   if (EXERCISE_TARGETS[key]) return EXERCISE_TARGETS[key];
+
+  const inferred = inferTargetsFromName(exerciseName);
+  if (inferred) return inferred;
 
   const match = masterExercises.find(ex => normalizeExerciseName(ex.name) === key);
   return (match && MUSCLE_GROUP_FALLBACKS[match.muscle_group]) || null;
