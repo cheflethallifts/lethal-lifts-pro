@@ -415,7 +415,7 @@ function SupabaseAuth() {
   // ... (your handleRequestCode and handleVerifyCode functions stay exactly the same above this) ...
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 p-4 md:p-8 font-sans flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 p-4 md:p-8 font-sans flex flex-col items-center justify-center gap-8">
       <div className="max-w-md w-full space-y-6 bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
         <div className="absolute -top-12 -right-12 w-48 h-48 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none"></div>
         
@@ -508,6 +508,23 @@ function SupabaseAuth() {
           </form>
         )}
       </div>
+
+      {/* Public app description. Google's review requires this to be visible without signing in. */}
+      <section className="max-w-md w-full space-y-4 text-sm text-neutral-400 leading-relaxed">
+        <h2 className="text-xl font-bold text-white">A workout tracker built for lifters</h2>
+        <p>Lethal Lifts helps you build a training program, log every set from the gym floor, and see how your strength and body weight change over time. Your workouts sync to your account, and you can keep logging when you lose signal.</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Custom training programs and exercises</li>
+          <li>Set-by-set workout logging</li>
+          <li>Pro: progress charts and a muscle heat map</li>
+          <li>Pro: body weight tracking, goals and progress photos</li>
+        </ul>
+        <p>Free to use. Lethal Lifts Pro is $4.99/month or $39.99/year.</p>
+        <nav className="flex gap-4 pt-2">
+          <a href="/privacy" className="text-cyan-500 hover:text-cyan-400 transition-colors">Privacy Policy</a>
+          <a href="mailto:cheflethallifts@gmail.com" className="text-cyan-500 hover:text-cyan-400 transition-colors">Contact</a>
+        </nav>
+      </section>
     </div>
   )
 }
@@ -553,7 +570,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.8 beta
+                 v0.4.9 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts
