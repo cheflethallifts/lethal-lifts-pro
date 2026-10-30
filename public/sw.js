@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lethal-lifts-v2'; // Bumped version to force cache refresh
+const CACHE_NAME = 'lethal-lifts-v3'; // Bumped version to force cache refresh
 
 const APP_SHELL = [
   '/',
