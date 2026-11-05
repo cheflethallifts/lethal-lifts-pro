@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { enqueueSession, syncQueuedSessions } from './offlineQueue';
 import { saveCloudCache, loadCloudCache, loadLastUser, clearCloudCache } from './localCache';
+import InstallTip from './InstallTip';
 
 // ==========================================
 // 🔴 SUPABASE CONFIGURATION (VITE ENV) 🔴
@@ -632,7 +633,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.18 beta
+                 v0.4.19 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts
@@ -650,6 +651,8 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             </div>
           </div>
         </div>
+
+        <InstallTip />
 
         {(!program || program.length === 0) ? (
             <div className="bg-neutral-900 border border-cyan-500/30 rounded-3xl p-6 md:p-8 shadow-2xl text-center relative overflow-hidden">
