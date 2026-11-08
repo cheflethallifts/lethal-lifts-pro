@@ -633,10 +633,10 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.19 beta
+                 v0.4.20 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
-                Lethal Lifts
+                Lethal Lifts{isPro && <span className="ml-2 align-middle inline-block text-sm md:text-base font-black tracking-widest px-2 py-0.5 rounded-md bg-gradient-to-r from-cyan-500 to-purple-500 text-white">PRO</span>}
               </h1>
               <p className="text-neutral-400 font-medium flex items-center gap-2 mt-2">
                 {isOnline ? (
