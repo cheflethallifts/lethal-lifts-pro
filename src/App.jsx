@@ -633,7 +633,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.20 beta
+                 v0.4.21 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts{isPro && <span className="ml-2 align-middle inline-block text-sm md:text-base font-black tracking-widest px-2 py-0.5 rounded-md bg-gradient-to-r from-cyan-500 to-purple-500 text-white">PRO</span>}
@@ -1622,9 +1622,32 @@ function TrackingApp({ user, blueprintDay, globalHistory, editSessionId, onBack,
     setSetupSeconds(Math.min(59, parseInt(valStr, 10)));
   };
 
-  const handleTimerStart = () => {
+  // Closing the phone keyboard can make the browser jump back to the box that opened it, away from the timer.
+  // So remember where the screen was when the timer button was touched, and hold it there while the keyboard closes.
+  const timerTouchScrollY = useRef(null);
+  const rememberTimerScroll = () => { timerTouchScrollY.current = window.scrollY; };
+  const blurAndHoldScroll = () => {
+    const y = timerTouchScrollY.current ?? window.scrollY;
+    timerTouchScrollY.current = null;
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-    
+    const until = Date.now() + 800;
+    let userMoved = false;
+    const stop = () => { userMoved = true; };
+    window.addEventListener('touchstart', stop, { once: true, passive: true });
+    window.addEventListener('wheel', stop, { once: true, passive: true });
+    const hold = () => {
+      if (userMoved) return;
+      if (Math.abs(window.scrollY - y) > 40) window.scrollTo(0, y);
+      if (Date.now() < until) requestAnimationFrame(hold);
+      else { window.removeEventListener('touchstart', stop); window.removeEventListener('wheel', stop); }
+    };
+    if (Math.abs(window.scrollY - y) > 40) window.scrollTo(0, y);
+    requestAnimationFrame(hold);
+  };
+
+  const handleTimerStart = () => {
+    blurAndHoldScroll();
+
     if (mode === 'setup') {
       const totalSetupTimeMs = (((parseInt(setupMinutes) || 0) * 60) + (parseInt(setupSeconds) || 0)) * 1000;
       if (totalSetupTimeMs > 0) {
@@ -1638,12 +1661,12 @@ function TrackingApp({ user, blueprintDay, globalHistory, editSessionId, onBack,
   };
 
   const handleTimerPause = () => {
-      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      blurAndHoldScroll();
       setIsActive(false);
   };
 
   const handleTimerReset = () => {
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    blurAndHoldScroll();
     setIsActive(false);
     setMode('setup');
     setTimeLeft(0);
@@ -2003,25 +2026,25 @@ function TrackingApp({ user, blueprintDay, globalHistory, editSessionId, onBack,
 
             <div className="flex items-center gap-4 mt-4">
               {!isActive && mode !== 'countup' && (
-                <button onClick={handleTimerStart} className="flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full px-5 py-2.5 text-base font-bold transition-transform active:scale-95 shadow-lg shadow-cyan-500/25">
+                <button onPointerDown={rememberTimerScroll} onClick={handleTimerStart} className="flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full px-5 py-2.5 text-base font-bold transition-transform active:scale-95 shadow-lg shadow-cyan-500/25">
                   <Play fill="currentColor" size={18} /> {mode === 'setup' ? 'Start' : 'Resume'}
                 </button>
               )}
               {!isActive && mode === 'countup' && (
-                <button onClick={() => {
-                    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+                <button onPointerDown={rememberTimerScroll} onClick={() => {
+                    blurAndHoldScroll();
                     setIsActive(true);
                 }} className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white rounded-full px-5 py-2.5 text-base font-bold transition-transform active:scale-95 shadow-lg shadow-green-500/25">
                   <Play fill="currentColor" size={18} /> Resume
                 </button>
               )}
               {isActive && (
-                <button onClick={handleTimerPause} className="flex items-center justify-center gap-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-full px-5 py-2.5 text-base font-bold transition-transform active:scale-95">
+                <button onPointerDown={rememberTimerScroll} onClick={handleTimerPause} className="flex items-center justify-center gap-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-full px-5 py-2.5 text-base font-bold transition-transform active:scale-95">
                   <Pause fill="currentColor" size={18} /> Pause
                 </button>
               )}
               {mode !== 'setup' && (
-                <button onClick={handleTimerReset} className="flex items-center justify-center p-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full transition-transform active:scale-95 group" title="Reset Timer">
+                <button onPointerDown={rememberTimerScroll} onClick={handleTimerReset} className="flex items-center justify-center p-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full transition-transform active:scale-95 group" title="Reset Timer">
                   <RotateCcw size={18} className="group-hover:-rotate-90 transition-transform duration-300" />
                 </button>
               )}
