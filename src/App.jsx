@@ -633,7 +633,7 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.22 beta
+                 v0.4.23 beta
               </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts{isPro && <span className="ml-2 align-middle inline-block text-sm md:text-base font-black tracking-widest px-2 py-0.5 rounded-md bg-gradient-to-r from-cyan-500 to-purple-500 text-white">PRO</span>}
@@ -1694,9 +1694,11 @@ function TrackingApp({ user, blueprintDay, globalHistory, editSessionId, onBack,
       if (exHistory.length === 0) {
         exHistory = globalHistory.filter(row => row['Exercise Name'] === exName);
       }
-      if (exHistory.length > 0) {
-        exHistory.sort((a,b) => getSafeTime(b.Date) - getSafeTime(a.Date));
-        const lastDate = exHistory[0].Date;
+      // Skipped exercises get saved with empty sets; only look back to a session where reps were actually logged.
+      const doneRows = exHistory.filter(row => parseFloat(row['Reps']) > 0);
+      if (doneRows.length > 0) {
+        doneRows.sort((a,b) => getSafeTime(b.Date) - getSafeTime(a.Date));
+        const lastDate = doneRows[0].Date;
         const lastSessionSets = exHistory.filter(row => row.Date === lastDate);
         lastSessionSets.sort((a,b) => a['Set Num'] - b['Set Num']);
         newCache[exName] = lastSessionSets.map(s => ({ weight: s['Weight (lbs)'], reps: s['Reps'], isDropSet: s['Is Drop Set'] }));
@@ -2404,6 +2406,10 @@ function ProgressHub({ globalHistory, blueprints, masterExercises, onBack, unitP
   } else {
      exData = globalHistory.filter(item => item['Exercise Name'] === selectedGlobalEx);
   }
+
+  // Leave out days where the exercise was skipped (no reps logged) so they don't show as 0 in the chart.
+  const datesWithReps = new Set(exData.filter(item => parseFloat(item['Reps']) > 0).map(item => item.Date));
+  exData = exData.filter(item => datesWithReps.has(item.Date));
 
   const groupedByDate = exData.reduce((acc, curr) => {
     const d = curr.Date;
