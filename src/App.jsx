@@ -40,7 +40,7 @@ const CHANGELOG = [
   { version: '0.4.24', date: 'Nov 22, 2026', items: [
     'New "What\'s new" link under the version number, so you can see what changed in each update.',
     'Export to Coach now ends with a small "Logged with Lethal Lifts" line.',
-    'Find us on Instagram: links to @lethallifts.app and @cheflethal in the About section.',
+    'Find us on Instagram: links to @cheflethal and @lethallifts.app in the About section.',
   ]},
   { version: '0.4.23', date: 'Nov 17, 2026', items: [
     'Skipped an exercise last time? Your workout now shows the numbers from the last time you actually did it, not zeros.',
@@ -3944,8 +3944,8 @@ function App() {
               <h3 className="text-white font-bold text-base mt-6">Follow Along</h3>
               <div className="grid grid-cols-1 gap-2">
                   {[
-                    { handle: 'lethallifts.app', label: 'App updates and tips' },
                     { handle: 'cheflethal', label: 'The person behind the app' },
+                    { handle: 'lethallifts.app', label: 'App updates and tips' },
                   ].map(s => (
                     <a key={s.handle} href={`https://www.instagram.com/${s.handle}/`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between bg-neutral-950 rounded-2xl px-4 py-3 border border-neutral-800 hover:border-purple-500/50 transition-colors">
                         <div>
