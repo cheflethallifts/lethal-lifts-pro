@@ -32,6 +32,47 @@ if (supabaseUrl && supabaseAnonKey) {
   configError = true;
 }
 
+// ==========================================
+// WHAT'S NEW: newest version first. The top entry is the version shown in the app,
+// so every version bump adds an entry here in plain, user-facing words.
+// ==========================================
+const CHANGELOG = [
+  { version: '0.4.24', date: 'Nov 22, 2026', items: [
+    'New "What\'s new" link under the version number, so you can see what changed in each update.',
+    'Export to Coach now ends with a small "Logged with Lethal Lifts" line.',
+  ]},
+  { version: '0.4.23', date: 'Nov 17, 2026', items: [
+    'Skipped an exercise last time? Your workout now shows the numbers from the last time you actually did it, not zeros.',
+    'Skipped days no longer show up as 0 in your progress charts.',
+  ]},
+  { version: '0.4.22', date: 'Nov 15, 2026', items: [
+    'A thank-you page after you subscribe to Pro.',
+  ]},
+  { version: '0.4.21', date: 'Nov 9, 2026', items: [
+    'Rest timer buttons no longer jump the screen when your phone keyboard closes.',
+  ]},
+  { version: '0.4.20', date: 'Nov 8, 2026', items: [
+    'Pro members get a PRO badge on the Hub.',
+  ]},
+  { version: '0.4.19', date: 'Nov 2026', items: [
+    'Tips for adding Lethal Lifts to your phone\'s home screen, plus a proper iPhone home screen icon.',
+  ]},
+  { version: '0.4.18', date: 'Oct 30, 2026', items: [
+    'A warning before a program change would throw away a workout in progress.',
+  ]},
+  { version: '0.4.14 – 0.4.17', date: 'Oct 2026', items: [
+    'Much better offline support: open the app, log workouts and see your history with no signal. Everything syncs when you reconnect.',
+  ]},
+  { version: '0.4.10 – 0.4.13', date: 'Oct 2026', items: [
+    'Manage your Pro subscription and delete your account yourself, right from the Hub.',
+    'Login codes now open the number pad.',
+  ]},
+  { version: '0.4.6 – 0.4.8', date: 'Oct 2026', items: [
+    'Muscle heat map: see which muscles you\'ve been training, over any time range.',
+  ]},
+];
+const APP_VERSION = CHANGELOG[0].version;
+
 const safeStorageGet = (key, defaultVal = null) => {
   try { return localStorage.getItem(key) || defaultVal; } catch (e) { return defaultVal; }
 };
@@ -593,7 +634,15 @@ function DeleteAccountModal({ isPro, isOnline, onClose }) {
 function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, onLaunchSetup, onLaunchProgress, onLaunchWeightTracker, onLaunchExport, onLaunchEditHub, onLaunchEquipment, onLaunchGuide, onLaunchAbout, onSignOut, showConfirm, isPro, user, isOnline }) {
   const [showPaywall, setShowPaywall] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
-  
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [hasUnseenUpdate, setHasUnseenUpdate] = useState(() => safeStorageGet('lethal_seen_version') !== APP_VERSION);
+
+  const openWhatsNew = () => {
+    setShowWhatsNew(true);
+    setHasUnseenUpdate(false);
+    safeStorageSet('lethal_seen_version', APP_VERSION);
+  };
+
   const stripeMonthlyLink = "https://buy.stripe.com/4gM00jetHg6V3aUdgI6kg00"; 
   const stripeAnnualLink = "https://buy.stripe.com/dRmfZh85jg6VaDm6Sk6kg01";
   const stripePortalLink = "https://billing.stripe.com/p/login/4gM00jetHg6V3aUdgI6kg00";
@@ -633,8 +682,12 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-neutral-900/50 border border-neutral-800 text-[10px] font-bold tracking-widest text-cyan-500 mb-3 shadow-sm">
                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-cyan-500 animate-[pulse_2s_ease-in-out_infinite]' : 'bg-amber-500'}`}></div>
-                 v0.4.23 beta
+                 v{APP_VERSION} beta
               </div>
+              <button onClick={openWhatsNew} className="flex items-center gap-1.5 text-[11px] font-semibold text-neutral-500 hover:text-cyan-400 transition-colors -mt-1 mb-2">
+                {hasUnseenUpdate && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>}
+                What's new
+              </button>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 Lethal Lifts{isPro && <span className="ml-2 align-middle inline-block text-sm md:text-base font-black tracking-widest px-2 py-0.5 rounded-md bg-gradient-to-r from-cyan-500 to-purple-500 text-white">PRO</span>}
               </h1>
@@ -849,6 +902,33 @@ function LandingPage({ program, cachedSession, onClearCache, onLaunchSession, on
         </div>
 
         {showDeleteAccount && <DeleteAccountModal isPro={isPro} isOnline={isOnline} onClose={() => setShowDeleteAccount(false)} />}
+
+        {showWhatsNew && (
+          <div className="fixed inset-0 bg-neutral-950/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fade-in" onClick={() => setShowWhatsNew(false)}>
+             <div className="bg-neutral-900 border border-neutral-800 rounded-3xl w-full max-w-sm max-h-[80vh] flex flex-col overflow-hidden shadow-2xl relative animate-slide-up" onClick={e => e.stopPropagation()}>
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 to-purple-500"></div>
+                <div className="flex items-center justify-between px-6 pt-6 pb-3">
+                    <h2 className="text-xl font-extrabold text-white">What's new</h2>
+                    <button onClick={() => setShowWhatsNew(false)} className="p-1 text-neutral-500 hover:text-white transition-colors" aria-label="Close"><XIcon size={20} /></button>
+                </div>
+                <div className="overflow-y-auto px-6 pb-6 space-y-5">
+                    {CHANGELOG.map((entry, i) => (
+                        <div key={entry.version}>
+                            <div className="flex items-baseline gap-2 mb-1.5">
+                                <span className={`text-sm font-bold ${i === 0 ? 'text-cyan-400' : 'text-neutral-300'}`}>v{entry.version}</span>
+                                <span className="text-xs text-neutral-500">{entry.date}</span>
+                            </div>
+                            <ul className="space-y-1.5">
+                                {entry.items.map((item, j) => (
+                                    <li key={j} className="text-sm text-neutral-400 leading-relaxed flex gap-2"><span className="text-neutral-600 shrink-0">•</span><span>{item}</span></li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
+                </div>
+             </div>
+          </div>
+        )}
 
         {showPaywall && (
           <div className="fixed inset-0 bg-neutral-950/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fade-in">
@@ -3249,7 +3329,7 @@ function ExportHub({ globalHistory, onBack, unitPref, showAlert }) {
           text += `Notes:\n${notes['Notes']}`;
         }
 
-        return text.trim();
+        return text.trim() + '\n\n— Logged with Lethal Lifts · lethallifts.com';
       };
 
       const handleCopy = () => {
